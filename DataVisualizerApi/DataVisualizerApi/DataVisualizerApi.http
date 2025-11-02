@@ -1,4 +1,4 @@
-@DataVisualizerApi_HostAddress = http://localhost:5213
+@DataVisualizerApi_HostAddress = https://localhost:5213
 
 ### Register a new user
 POST {{DataVisualizerApi_HostAddress}}/auth/register
