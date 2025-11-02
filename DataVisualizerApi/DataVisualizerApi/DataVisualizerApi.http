@@ -19,4 +19,16 @@ Content-Type: application/json
   "email": "user@example.com",
   "password": "YourSecurePassword123"
 }
+
+###
+
+### Reset password for user
+POST {{DataVisualizerApi_HostAddress}}/auth/reset-password
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "newPassword": "NewSecurePassword456"
+}
+
 ###
