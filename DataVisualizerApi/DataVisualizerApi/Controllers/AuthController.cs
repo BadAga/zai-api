@@ -2,9 +2,6 @@
 using DataVisualizerApi.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using DataVisualizerApi.Models;
-using Microsoft.AspNetCore.Identity.Data;
-
 namespace DataVisualizerApi.Controllers;
 
 
