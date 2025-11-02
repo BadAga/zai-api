@@ -3,6 +3,7 @@ using DataVisualizerApi.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DataVisualizerApi.Models;
+using Microsoft.AspNetCore.Identity.Data;
 
 namespace DataVisualizerApi.Controllers;
 
@@ -22,6 +23,8 @@ public class AuthController : ControllerBase
 
     public record RegisterRequest(string Email, string Password);
     public record LoginRequest(string Email, string Password);
+    public record ResetPasswordRequest(string Email, string NewPassword);
+
 
     // POST /auth/register
     [HttpPost("register")]
@@ -29,6 +32,20 @@ public class AuthController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
             return BadRequest("Email and password required.");
+
+        try
+        {
+            var addr = new System.Net.Mail.MailAddress(req.Email);
+            if (addr.Address != req.Email)
+                return BadRequest("Invalid email format.");
+        }
+        catch
+        {
+            return BadRequest("Invalid email format.");
+        }
+
+        if (req.Password.Length < 8)
+            return BadRequest("Password must be at least 8 characters long.");
 
         var emailHash = _crypto.ComputeEmailHash(req.Email);
 
@@ -59,6 +76,17 @@ public class AuthController : ControllerBase
         if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
             return Unauthorized();
 
+        try
+        {
+            var addr = new System.Net.Mail.MailAddress(req.Email);
+            if (addr.Address != req.Email)
+                return BadRequest("Invalid email format.");
+        }
+        catch
+        {
+            return BadRequest("Invalid email format.");
+        }
+
         var emailHash = _crypto.ComputeEmailHash(req.Email);
         var user = await _db.Users.AsNoTracking()
             .FirstOrDefaultAsync(u => u.EmailHash == emailHash, ct);
@@ -70,5 +98,40 @@ public class AuthController : ControllerBase
             return Unauthorized("Invalid credentials.");
 
         return Ok("Login successful.");
+    }
+
+    // POST /auth/reset-password
+    [HttpPost("reset-password")]
+    public async Task<ActionResult> ResetPassword([FromBody] ResetPasswordRequest req, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.NewPassword))
+            return BadRequest("Email and new password required.");
+
+        try
+        {
+            var addr = new System.Net.Mail.MailAddress(req.Email);
+            if (addr.Address != req.Email)
+                return BadRequest("Invalid email format.");
+        }
+        catch
+        {
+            return BadRequest("Invalid email format.");
+        }
+
+        if (req.NewPassword.Length < 8)
+            return BadRequest("Password must be at least 8 characters long.");
+
+        var emailHash = _crypto.ComputeEmailHash(req.Email);
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.EmailHash == emailHash, ct);
+
+        if (user == null)
+            return NotFound("User not found.");
+
+        user.PasswordHash = _crypto.HashPassword(req.NewPassword);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+
+        return Ok("Password has been reset.");
     }
 }
