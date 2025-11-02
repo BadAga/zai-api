@@ -1,0 +1,22 @@
+@DataVisualizerApi_HostAddress = http://localhost:5213
+
+### Register a new user
+POST {{DataVisualizerApi_HostAddress}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "YourSecurePassword123"
+}
+
+###
+
+### Login with existing user
+POST {{DataVisualizerApi_HostAddress}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "YourSecurePassword123"
+}
+###
