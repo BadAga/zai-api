@@ -14,10 +14,30 @@ public partial class AppDbContext : DbContext
     {
     }
 
+    public virtual DbSet<Measurement> Measurements { get; set; }
+
+    public virtual DbSet<Series> Series { get; set; }
+
     public virtual DbSet<User> Users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Measurement>(entity =>
+        {
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysdatetime())");
+
+            entity.HasOne(d => d.Series).WithMany(p => p.Measurements).HasConstraintName("FK_Measurements_Series");
+        });
+
+        modelBuilder.Entity<Series>(entity =>
+        {
+            entity.ToTable(tb => tb.HasTrigger("TR_Series_SetUpdatedAt"));
+
+            entity.Property(e => e.ColorHex).IsFixedLength();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysdatetime())");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(sysdatetime())");
+        });
+
         modelBuilder.Entity<User>(entity =>
         {
             entity.ToTable(tb => tb.HasTrigger("TR_Users_SetUpdatedAt"));

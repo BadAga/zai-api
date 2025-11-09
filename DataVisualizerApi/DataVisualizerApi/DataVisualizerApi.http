@@ -1,4 +1,4 @@
-@DataVisualizerApi_HostAddress = http://localhost:5213
+@DataVisualizerApi_HostAddress = https://localhost:5213
 
 ### Register a new user
 POST {{DataVisualizerApi_HostAddress}}/auth/register
@@ -19,4 +19,103 @@ Content-Type: application/json
   "email": "user@example.com",
   "password": "YourSecurePassword123"
 }
+
+###
+
+### Reset password for user
+POST {{DataVisualizerApi_HostAddress}}/auth/reset-password
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "newPassword": "NewSecurePassword456"
+}
+
+###
+
+### Get all series
+GET {{DataVisualizerApi_HostAddress}}/series
+
+###
+
+### Get all series with measurements
+GET {{DataVisualizerApi_HostAddress}}/series/all-with-measurements
+
+###
+
+### Get series by id
+GET {{DataVisualizerApi_HostAddress}}/series/1
+
+###
+
+### Create new series
+POST {{DataVisualizerApi_HostAddress}}/series
+Content-Type: application/json
+
+{
+  "name": "Temperature",
+  "unit": "C",
+  "minValue": -50,
+  "maxValue": 100,
+  "colorHex": "#FF0000"
+}
+
+###
+
+### Update series
+PUT {{DataVisualizerApi_HostAddress}}/series/1
+Content-Type: application/json
+
+{
+  "name": "Temperature",
+  "unit": "C",
+  "minValue": -40,
+  "maxValue": 120,
+  "colorHex": "#00FF00"
+}
+
+###
+
+### Delete series
+DELETE {{DataVisualizerApi_HostAddress}}/series/1
+
+###
+
+### Get measurements by seriesId (with optional date range)
+GET {{DataVisualizerApi_HostAddress}}/measurements?seriesId=1&from=2024-01-01T00:00:00Z&to=2024-12-31T23:59:59Z
+
+###
+
+### Get measurement by id
+GET {{DataVisualizerApi_HostAddress}}/measurements/1
+
+###
+
+### Create new measurement
+POST {{DataVisualizerApi_HostAddress}}/measurements
+Content-Type: application/json
+
+{
+  "seriesId": 1,
+  "measuredAt": "2024-06-01T12:00:00Z",
+  "value": 23.5
+}
+
+###
+
+### Update measurement
+PUT {{DataVisualizerApi_HostAddress}}/measurements/1
+Content-Type: application/json
+
+{
+  "seriesId": 1,
+  "measuredAt": "2024-06-01T13:00:00Z",
+  "value": 24.0
+}
+
+###
+
+### Delete measurement
+DELETE {{DataVisualizerApi_HostAddress}}/measurements/1
+
 ###
