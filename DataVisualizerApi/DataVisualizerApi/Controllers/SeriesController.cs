@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DataVisualizerApi.Data;
 using DataVisualizerApi.Models;
+using DataVisualizerApi.DTOs;
 
 namespace DataVisualizerApi.Controllers;
 
@@ -17,51 +18,7 @@ public class SeriesController : ControllerBase
         _db = db;
     }
 
-    // DTOs
-    public record SeriesDto(
-        int Id,
-        string Name,
-        string Unit,
-        double? MinValue,
-        double? MaxValue,
-        string? ColorHex
-    );
-
-    public class SeriesCreateUpdateRequest
-    {
-        [Required]
-        [MaxLength(100)]
-        public string Name { get; set; } = default!;
-
-        [Required]
-        [MaxLength(20)]
-        public string Unit { get; set; } = default!;
-
-        public double? MinValue { get; set; }
-        public double? MaxValue { get; set; }
-
-        [MaxLength(7)]
-        public string? ColorHex { get; set; }
-    }
-
     public record UpdateSeriesColorRequest([MaxLength(7)] string ColorHex);
-
-    public record SeriesWithMeasurementsDto(
-    int Id,
-    string Name,
-    string Unit,
-    double? MinValue,
-    double? MaxValue,
-    string? ColorHex,
-    List<MeasurementDto> Measurements
-);
-
-    public record MeasurementDto(
-        long Id,
-        int SeriesId,
-        DateTime MeasuredAt,
-        double Value
-    );
 
     private static MeasurementDto ToMeasurementDto(Measurement m) =>
         new(
@@ -95,32 +52,82 @@ public class SeriesController : ControllerBase
             ColorHex: s.ColorHex
         );
 
-    // GET /series
-    [HttpGet]
+    // GET /series/all-with-measurements-timeframe?from=...&until=...
+    [HttpGet("all-with-measurements-timeframe")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<SeriesDto>>> GetAll(CancellationToken ct = default)
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<IEnumerable<SeriesWithMeasurementsDto>>> GetAllWithMeasurementsInTimeframe(
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? until = null,
+        CancellationToken ct = default)
     {
-        var list = await _db.Series
+        // Validate inputs
+        if (from.HasValue && until.HasValue && from.Value > until.Value)
+        {
+            return BadRequest("Parameter 'from' must be earlier than 'until'.");
+        }
+
+        var now = DateTime.UtcNow;
+
+        if (until.HasValue && until.Value > now)
+        {
+            return BadRequest("Parameter 'until' cannot be in the future.");
+        }
+
+        if (from.HasValue && from.Value > now)
+        {
+            return BadRequest("Parameter 'from' cannot be in the future.");
+        }
+
+        // Load all series (we still return all series, even if they have no measurements in range)
+        var seriesList = await _db.Series
             .AsNoTracking()
             .OrderBy(s => s.Name)
-            .Select(s => ToDto(s))
             .ToListAsync(ct);
 
-        return Ok(list);
-    }
+        // Load measurements within timeframe
+        IQueryable<Measurement> measurementsQuery = _db.Measurements.AsNoTracking();
 
-    [HttpGet("all-with-measurements")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<SeriesDto>>> GetAllWithMeasurements(CancellationToken ct = default)
-    {
-        var list = await _db.Series
-        .AsNoTracking()
-        .Include(s => s.Measurements)
-        .OrderBy(s => s.Name)
-        .Select(s => ToSeriesWithMeasurementsDto(s))
-        .ToListAsync(ct);
+        if (from.HasValue)
+        {
+            measurementsQuery = measurementsQuery.Where(m => m.MeasuredAt >= from.Value);
+        }
 
-        return Ok(list);
+        if (until.HasValue)
+        {
+            measurementsQuery = measurementsQuery.Where(m => m.MeasuredAt <= until.Value);
+        }
+
+        var measurements = await measurementsQuery
+            .OrderBy(m => m.MeasuredAt)
+            .ToListAsync(ct);
+
+        // Group measurements by series
+        var measurementsBySeries = measurements
+            .GroupBy(m => m.SeriesId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(ToMeasurementDto).ToList()
+            );
+
+        // Build result: same DTO as all-with-measurements, but with filtered measurement lists
+        var result = seriesList
+            .Select(s =>
+            {
+                var hasMeasurements = measurementsBySeries.TryGetValue(s.SeriesId, out var ms);
+                return new SeriesWithMeasurementsDto(
+                    Id: s.SeriesId,
+                    Name: s.Name,
+                    Unit: s.Unit,
+                    MinValue: s.MinValue,
+                    MaxValue: s.MaxValue,
+                    ColorHex: s.ColorHex,
+                    Measurements: hasMeasurements ? ms! : new List<MeasurementDto>()
+                );
+            })
+            .ToList();
+
+        return Ok(result);
     }
 
     // GET /series/{id}
@@ -144,7 +151,7 @@ public class SeriesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<SeriesDto>> Create(
-        [FromBody] SeriesCreateUpdateRequest req,
+        [FromBody] SeriesCreateDto req,
         CancellationToken ct = default)
     {
         if (!ModelState.IsValid)
@@ -210,7 +217,7 @@ public class SeriesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<SeriesDto>> Update(
         int id,
-        [FromBody] SeriesCreateUpdateRequest req,
+        [FromBody] SeriesUpdateDto req,
         CancellationToken ct = default)
     {
         if (!ModelState.IsValid)
@@ -226,7 +233,6 @@ public class SeriesController : ControllerBase
         if (entity == null)
             return NotFound();
 
-        entity.Name = req.Name.Trim();
         entity.Unit = req.Unit.Trim();
         entity.MinValue = req.MinValue;
         entity.MaxValue = req.MaxValue;

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DataVisualizerApi.Data;
 using DataVisualizerApi.Models;
+using DataVisualizerApi.DTOs;
 
 namespace DataVisualizerApi.Controllers;
 
@@ -16,14 +17,6 @@ public class MeasurementsController : ControllerBase
     {
         _db = db;
     }
-
-    // DTOs
-    public record MeasurementDto(
-        long Id,
-        int SeriesId,
-        DateTime MeasuredAt,
-        double Value
-    );
 
     public class MeasurementCreateUpdateRequest
     {
@@ -46,7 +39,7 @@ public class MeasurementsController : ControllerBase
         );
 
     // GET /measurements?seriesId=1&from=2025-01-01&to=2025-12-31
-    [HttpGet]
+    [HttpGet()]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IEnumerable<MeasurementDto>>> GetBySeries(
