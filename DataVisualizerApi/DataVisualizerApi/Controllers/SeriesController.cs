@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using DataVisualizerApi.Data;
 using DataVisualizerApi.Models;
 using DataVisualizerApi.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 namespace DataVisualizerApi.Controllers;
 
@@ -26,20 +27,6 @@ public class SeriesController : ControllerBase
             SeriesId: m.SeriesId,
             MeasuredAt: m.MeasuredAt,
             Value: m.Value
-        );
-
-    private static SeriesWithMeasurementsDto ToSeriesWithMeasurementsDto(Series s) =>
-        new(
-            Id: s.SeriesId,
-            Name: s.Name,
-            Unit: s.Unit,
-            MinValue: s.MinValue,
-            MaxValue: s.MaxValue,
-            ColorHex: s.ColorHex,
-            Measurements: s.Measurements
-                .OrderBy(m => m.MeasuredAt)
-                .Select(ToMeasurementDto)
-                .ToList()
         );
 
     private static SeriesDto ToDto(Series s) =>
@@ -148,6 +135,7 @@ public class SeriesController : ControllerBase
 
     // POST /series
     [HttpPost]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<SeriesDto>> Create(
@@ -184,6 +172,7 @@ public class SeriesController : ControllerBase
 
     // PATCH /series/{id}/color
     [HttpPatch("{id:int}/color")]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -212,6 +201,7 @@ public class SeriesController : ControllerBase
 
     // PUT /series/{id}
     [HttpPut("{id:int}")]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -246,6 +236,7 @@ public class SeriesController : ControllerBase
 
     // DELETE /series/{id}
     [HttpDelete("{id:int}")]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct = default)

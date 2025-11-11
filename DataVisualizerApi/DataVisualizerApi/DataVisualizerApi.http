@@ -22,9 +22,20 @@ Content-Type: application/json
 
 ###
 
-### Reset password for user
+### Refresh token
+POST {{DataVisualizerApi_HostAddress}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "<YOUR_REFRESH_TOKEN>"
+}
+
+###
+
+### Reset password for user (requires authorization)
 POST {{DataVisualizerApi_HostAddress}}/auth/reset-password
 Content-Type: application/json
+Authorization: Bearer {{access_token}}
 
 {
   "email": "user@example.com",
@@ -119,3 +130,4 @@ Content-Type: application/json
 DELETE {{DataVisualizerApi_HostAddress}}/measurements/1
 
 ###
+

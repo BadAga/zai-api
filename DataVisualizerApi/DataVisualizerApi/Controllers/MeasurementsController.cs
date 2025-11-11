@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using DataVisualizerApi.Data;
 using DataVisualizerApi.Models;
 using DataVisualizerApi.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 namespace DataVisualizerApi.Controllers;
 
@@ -87,6 +88,7 @@ public class MeasurementsController : ControllerBase
 
     // POST /measurements
     [HttpPost]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<MeasurementDto>> Create(
@@ -114,7 +116,7 @@ public class MeasurementsController : ControllerBase
         var entity = new Measurement
         {
             SeriesId = req.SeriesId,
-            MeasuredAt = req.MeasuredAt,   // możesz wymusić Utc: DateTime.SpecifyKind(..., Utc)
+            MeasuredAt = req.MeasuredAt,
             Value = req.Value,
             CreatedAt = DateTime.UtcNow
         };
@@ -129,6 +131,7 @@ public class MeasurementsController : ControllerBase
 
     // PUT /measurements/{id}
     [HttpPut("{id:long}")]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -170,6 +173,7 @@ public class MeasurementsController : ControllerBase
 
     // DELETE /measurements/{id}
     [HttpDelete("{id:long}")]
+    [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(long id, CancellationToken ct = default)

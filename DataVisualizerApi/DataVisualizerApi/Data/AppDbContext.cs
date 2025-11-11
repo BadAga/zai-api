@@ -14,14 +14,27 @@ public partial class AppDbContext : DbContext
     {
     }
 
+    public virtual DbSet<RefreshToken> RefreshTokens { get; set; }
     public virtual DbSet<Measurement> Measurements { get; set; }
 
     public virtual DbSet<Series> Series { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__RefreshT__3214EC071FA2645C");
+
+            entity.HasIndex(e => e.UserId, "IX_RefreshTokens_UserId");
+
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.ExpiresAt).HasPrecision(3);
+            entity.Property(e => e.Token).HasMaxLength(256);
+        });
+
         modelBuilder.Entity<Measurement>(entity =>
         {
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysdatetime())");
@@ -46,9 +59,9 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysdatetime())");
             entity.Property(e => e.EmailHashVersion).HasDefaultValue((byte)1);
             entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(sysdatetime())");
-        });
 
-        OnModelCreatingPartial(modelBuilder);
+            OnModelCreatingPartial(modelBuilder);
+        });
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);

@@ -2,6 +2,10 @@
 using DataVisualizerApi.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using DataVisualizerApi.DTOs;
+using DataVisualizerApi.Services;
+using Microsoft.AspNetCore.Authorization;
+
 namespace DataVisualizerApi.Controllers;
 
 
@@ -11,17 +15,17 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IAuthCrypto _crypto;
+    private readonly ITokenService _tokenService;
+    private readonly IConfiguration _config;
 
-    public AuthController(AppDbContext db, IAuthCrypto crypto)
+
+    public AuthController(AppDbContext db, IAuthCrypto crypto, ITokenService tokenService, IConfiguration config)
     {
         _db = db;
         _crypto = crypto;
-    }
-
-    public record RegisterRequest(string Email, string Password);
-    public record LoginRequest(string Email, string Password);
-    public record ResetPasswordRequest(string Email, string NewPassword);
-
+        _tokenService = tokenService;
+        _config = config;
+    }    
 
     // POST /auth/register
     [HttpPost("register")]
@@ -94,11 +98,68 @@ public class AuthController : ControllerBase
         if (!_crypto.VerifyPassword(req.Password, user.PasswordHash))
             return Unauthorized("Invalid credentials.");
 
-        return Ok("Login successful.");
+        var accessToken = _tokenService.GenerateAccessToken(user);
+        var refreshToken = _tokenService.GenerateRefreshToken();
+
+        var refreshTokenEntity = new RefreshToken
+        {
+            Token = refreshToken,
+            UserId = user.Id,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddDays(int.Parse(_config["Jwt:RefreshTokenDays"] ?? "7")),
+            Revoked = false
+        };
+
+        _db.RefreshTokens.Add(refreshTokenEntity);
+        await _db.SaveChangesAsync(ct);
+
+
+        var expiresAt = DateTime.UtcNow.AddMinutes(int.Parse(_config["Jwt:AccessTokenMinutes"] ?? "15"));
+        return Ok(new AuthResponse(accessToken, refreshToken, expiresAt));
+    }
+
+    // POST /auth/refresh
+    [HttpPost("refresh")]
+    public async Task<ActionResult<AuthResponse>> Refresh([FromBody] RefreshRequest req, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(req.RefreshToken))
+            return BadRequest("Refresh token is required.");
+
+        var oldToken = await _db.RefreshTokens
+            .FirstOrDefaultAsync(rt => rt.Token == req.RefreshToken, ct);
+
+        if (oldToken == null || oldToken.Revoked || oldToken.ExpiresAt < DateTime.UtcNow)
+            return Unauthorized("Invalid or expired refresh token.");
+
+        var user = await _db.Users
+            .FirstOrDefaultAsync(u => u.Id == oldToken.UserId, ct);
+
+        if (user == null)
+            return Unauthorized("User not found.");
+
+        oldToken.Revoked = true;
+        var newRefreshToken = _tokenService.GenerateRefreshToken();
+
+        var newTokenEntity = new RefreshToken
+        {
+            Token = newRefreshToken,
+            UserId = user.Id,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddDays(int.Parse(_config["Jwt:RefreshTokenDays"] ?? "7")),
+            Revoked = false
+        };
+
+        _db.RefreshTokens.Add(newTokenEntity);
+        await _db.SaveChangesAsync(ct);
+
+        var accessToken = _tokenService.GenerateAccessToken(user);
+        var expiresAt = DateTime.UtcNow.AddMinutes(int.Parse(_config["Jwt:AccessTokenMinutes"] ?? "15"));
+        return Ok(new AuthResponse(accessToken, newRefreshToken, expiresAt));
     }
 
     // POST /auth/reset-password
     [HttpPost("reset-password")]
+    [Authorize]
     public async Task<ActionResult> ResetPassword([FromBody] ResetPasswordRequest req, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.NewPassword))
