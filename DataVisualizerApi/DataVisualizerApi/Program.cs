@@ -82,7 +82,7 @@ builder.Services.AddCors(options =>
               .AllowCredentials();
     });
 });
-nts
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
